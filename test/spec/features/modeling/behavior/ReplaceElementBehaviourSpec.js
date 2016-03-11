@@ -10,12 +10,66 @@ var replacePreviewModule = require('../../../../../lib/features/replace-preview'
     coreModule = require('../../../../../lib/core');
 
 var is = require('../../../../../lib/util/ModelUtil').is,
+    isExpanded = require('../../../../../lib/util/DiUtil').isExpanded,
     canvasEvent = require('../../../../util/MockEvents').createCanvasEvent;
 
 
 describe('features/modeling - move start event behavior', function() {
 
   var testModules = [ replacePreviewModule, modelingModule, coreModule, moveModule ];
+
+  describe('Expanded/Collapsed Pools', function() {
+      var diagramXML = require('../../../../fixtures/bpmn/collaboration-message-flows.bpmn');
+
+      beforeEach(bootstrapModeler(diagramXML, { modules: testModules }));
+
+      it('should transform to collapsed and back', inject(function(elementRegistry, bpmnReplace) {
+
+          // given
+          var shape = elementRegistry.get('Participant_1');
+
+          // when
+          var newShape = bpmnReplace.replaceElement(shape, { type: 'bpmn:Participant' });
+
+          // then
+          expect(isExpanded(newShape)).to.be.false;
+          expect(newShape.children).to.be.empty;
+
+          // when
+          newShape = bpmnReplace.replaceElement(newShape, { type: 'bpmn:Participant' });
+
+          // then
+          expect(isExpanded(newShape)).to.be.true;
+          expect(newShape.children).to.be.empty; // child elements are still deleted
+      }));
+
+      it('should remove lanes as well', inject(function(elementRegistry, bpmnReplace) {
+          // TODO: maybe add this in the test above
+      }));
+
+      it('should undo/redo', inject(function(elementRegistry, bpmnReplace, commandStack) {
+        // given
+        var shape = elementRegistry.get('Participant_1');
+
+        // when
+        var newShape = bpmnReplace.replaceElement(shape, { type: 'bpmn:Participant' });
+
+        // then
+        expect(elementRegistry.get('Participant_1')).to.be.undefined;
+
+        // when
+        commandStack.undo();
+
+        // then
+        expect(elementRegistry.get('Participant_1')).to.be.eql(shape);
+
+        // when
+        commandStack.redo();
+
+        // then
+        expect(elementRegistry.get('Participant_1')).to.be.undefined;
+      }));
+  });
 
   describe('Start Events', function() {
     var diagramXML = require('../../../../fixtures/bpmn/event-sub-processes.bpmn');
@@ -347,5 +401,4 @@ describe('features/modeling - move start event behavior', function() {
     });
 
   });
-
 });
